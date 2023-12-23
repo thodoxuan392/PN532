@@ -9,6 +9,7 @@
 #ifndef __PN532_H__
 #define __PN532_H__
 
+#include <stdbool.h>
 #include <stdint.h>
 #include "PN532Interface.h"
 
@@ -124,89 +125,67 @@
 #define FELICA_WRITE_MAX_BLOCK_NUM          10 // for typical FeliCa card
 #define FELICA_REQ_SERVICE_MAX_NODE_NUM     32
 
-class PN532
-{
-public:
-    PN532(PN532Interface &interface);
+void PN532_init(PN532Interface *interface);
+void PN532_begin(void);
+// Generic PN532 functions
+bool PN532_sAMConfig(void);
+uint32_t PN532_getFirmwareVersion(void);
+uint32_t PN532_readRegister(uint16_t reg);
+uint32_t PN532_writeRegister(uint16_t reg, uint8_t val);
+bool PN532_writeGPIO(uint8_t pinstate);
+uint8_t PN532_readGPIO(void);
+bool PN532_setPassiveActivationRetries(uint8_t maxRetries);
+bool PN532_setRFField(uint8_t autoRFCA, uint8_t rFOnOff);
+bool PN532_powerDownMode();
 
-    void begin(void);
+/**
+* @brief    Init PN532 as a target
+* @param    timeout max time to wait, 0 means no timeout
+* @return   > 0     success
+*           = 0     timeout
+*           < 0     failed
+*/
+int8_t PN532_tgInitAsTargetTimeout(uint16_t timeout);
+int8_t PN532_tgInitAsTargetCmd(const uint8_t* command, const uint8_t len, const uint16_t timeout);
 
-    // Generic PN532 functions
-    bool SAMConfig(void);
-    uint32_t getFirmwareVersion(void);
-    uint32_t readRegister(uint16_t reg);
-    uint32_t writeRegister(uint16_t reg, uint8_t val);
-    bool writeGPIO(uint8_t pinstate);
-    uint8_t readGPIO(void);
-    bool setPassiveActivationRetries(uint8_t maxRetries);
-    bool setRFField(uint8_t autoRFCA, uint8_t rFOnOff);
-    bool powerDownMode();
+int16_t PN532_tgGetData(uint8_t *buf, uint8_t len);
+bool PN532_tgSetData(const uint8_t *header, uint8_t hlen, const uint8_t *body, uint8_t blen);
 
-    /**
-    * @brief    Init PN532 as a target
-    * @param    timeout max time to wait, 0 means no timeout
-    * @return   > 0     success
-    *           = 0     timeout
-    *           < 0     failed
-    */
-    int8_t tgInitAsTarget(uint16_t timeout = 0);
-    int8_t tgInitAsTarget(const uint8_t* command, const uint8_t len, const uint16_t timeout = 0);
+int16_t PN532_inRelease(const uint8_t relevantTarget);
 
-    int16_t tgGetData(uint8_t *buf, uint8_t len);
-    bool tgSetData(const uint8_t *header, uint8_t hlen, const uint8_t *body = 0, uint8_t blen = 0);
+// ISO14443A functions
+bool PN532_inListPassiveTarget();
+bool PN532_startPassiveTargetIDDetection(uint8_t cardbaudrate);
+bool PN532_readPassiveTargetID(uint8_t cardbaudrate, uint8_t *uid, uint8_t *uidLength, uint16_t timeout, bool inlist);
+bool PN532_inDataExchange(uint8_t *send, uint8_t sendLength, uint8_t *response, uint8_t *responseLength);
+bool PN532_inCommunicateThru(uint8_t *send, uint8_t sendLength, uint8_t *response, uint8_t *responseLength);
 
-    int16_t inRelease(const uint8_t relevantTarget = 0);
+// Mifare Classic functions
+bool PN532_mifareclassic_IsFirstBlock (uint32_t uiBlock);
+bool PN532_mifareclassic_IsTrailerBlock (uint32_t uiBlock);
+uint8_t PN532_mifareclassic_AuthenticateBlock (uint8_t *uid, uint8_t uidLen, uint32_t blockNumber, uint8_t keyNumber, uint8_t *keyData);
+uint8_t PN532_mifareclassic_ReadDataBlock (uint8_t blockNumber, uint8_t *data);
+uint8_t PN532_mifareclassic_WriteDataBlock (uint8_t blockNumber, uint8_t *data);
+uint8_t PN532_mifareclassic_FormatNDEF (void);
+uint8_t PN532_mifareclassic_WriteNDEFURI (uint8_t sectorNumber, uint8_t uriIdentifier, const char *url);
 
-    // ISO14443A functions
-    bool inListPassiveTarget();
-    bool startPassiveTargetIDDetection(uint8_t cardbaudrate);
-    bool readPassiveTargetID(uint8_t cardbaudrate, uint8_t *uid, uint8_t *uidLength, uint16_t timeout = 1000, bool inlist = false);
-    bool inDataExchange(uint8_t *send, uint8_t sendLength, uint8_t *response, uint8_t *responseLength);
-    bool inCommunicateThru(uint8_t *send, uint8_t sendLength, uint8_t *response, uint8_t *responseLength);
+// Mifare Ultralight functions
+uint8_t PN532_mifareultralight_ReadPage (uint8_t page, uint8_t *buffer);
+uint8_t PN532_mifareultralight_WritePage (uint8_t page, uint8_t *buffer);
 
-    // Mifare Classic functions
-    bool mifareclassic_IsFirstBlock (uint32_t uiBlock);
-    bool mifareclassic_IsTrailerBlock (uint32_t uiBlock);
-    uint8_t mifareclassic_AuthenticateBlock (uint8_t *uid, uint8_t uidLen, uint32_t blockNumber, uint8_t keyNumber, uint8_t *keyData);
-    uint8_t mifareclassic_ReadDataBlock (uint8_t blockNumber, uint8_t *data);
-    uint8_t mifareclassic_WriteDataBlock (uint8_t blockNumber, uint8_t *data);
-    uint8_t mifareclassic_FormatNDEF (void);
-    uint8_t mifareclassic_WriteNDEFURI (uint8_t sectorNumber, uint8_t uriIdentifier, const char *url);
+// FeliCa Functions
+int8_t PN532_felica_Polling(uint16_t systemCode, uint8_t requestCode, uint8_t *idm, uint8_t *pmm, uint16_t *systemCodeResponse, uint16_t timeout);
+int8_t PN532_felica_SendCommand (const uint8_t * command, uint8_t commandlength, uint8_t * response, uint8_t * responseLength);
+int8_t PN532_felica_RequestService(uint8_t numNode, uint16_t *nodeCodeList, uint16_t *keyVersions) ;
+int8_t PN532_felica_RequestResponse(uint8_t *mode);
+int8_t PN532_felica_ReadWithoutEncryption (uint8_t numService, const uint16_t *serviceCodeList, uint8_t numBlock, const uint16_t *blockList, uint8_t blockData[][16]);
+int8_t PN532_felica_WriteWithoutEncryption (uint8_t numService, const uint16_t *serviceCodeList, uint8_t numBlock, const uint16_t *blockList, uint8_t blockData[][16]);
+int8_t PN532_felica_RequestSystemCode(uint8_t *numSystemCode, uint16_t *systemCodeList);
+int8_t PN532_felica_Release();
 
-    // Mifare Ultralight functions
-    uint8_t mifareultralight_ReadPage (uint8_t page, uint8_t *buffer);
-    uint8_t mifareultralight_WritePage (uint8_t page, uint8_t *buffer);
+// Help functions to display formatted text
+void PN532_PrintHex(const uint8_t *data, const uint32_t numBytes);
+void PN532_PrintHexChar(const uint8_t *pbtData, const uint32_t numBytes);
 
-    // FeliCa Functions
-    int8_t felica_Polling(uint16_t systemCode, uint8_t requestCode, uint8_t *idm, uint8_t *pmm, uint16_t *systemCodeResponse, uint16_t timeout=1000);
-    int8_t felica_SendCommand (const uint8_t * command, uint8_t commandlength, uint8_t * response, uint8_t * responseLength);
-    int8_t felica_RequestService(uint8_t numNode, uint16_t *nodeCodeList, uint16_t *keyVersions) ;
-    int8_t felica_RequestResponse(uint8_t *mode);
-    int8_t felica_ReadWithoutEncryption (uint8_t numService, const uint16_t *serviceCodeList, uint8_t numBlock, const uint16_t *blockList, uint8_t blockData[][16]);
-    int8_t felica_WriteWithoutEncryption (uint8_t numService, const uint16_t *serviceCodeList, uint8_t numBlock, const uint16_t *blockList, uint8_t blockData[][16]);
-    int8_t felica_RequestSystemCode(uint8_t *numSystemCode, uint16_t *systemCodeList);
-    int8_t felica_Release();
-
-    // Help functions to display formatted text
-    static void PrintHex(const uint8_t *data, const uint32_t numBytes);
-    static void PrintHexChar(const uint8_t *pbtData, const uint32_t numBytes);
-
-    uint8_t *getBuffer(uint8_t *len) {
-        *len = sizeof(pn532_packetbuffer) - 4;
-        return pn532_packetbuffer;
-    };
-
-private:
-    uint8_t _uid[7];  // ISO14443A uid
-    uint8_t _uidLen;  // uid len
-    uint8_t _key[6];  // Mifare Classic key
-    uint8_t inListedTag; // Tg number of inlisted tag.
-    uint8_t _felicaIDm[8]; // FeliCa IDm (NFCID2)
-    uint8_t _felicaPMm[8]; // FeliCa PMm (PAD)
-
-    uint8_t pn532_packetbuffer[64];
-
-    PN532Interface *_interface;
-};
-
+uint8_t *PN532_getBuffer(uint8_t *len);
 #endif
